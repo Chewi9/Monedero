@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const gastoSchema = new mongoose.Schema({
+const transaccionSchema = new mongoose.Schema({
   descripcion: { 
     type: String, 
     required: true
@@ -16,7 +16,12 @@ const gastoSchema = new mongoose.Schema({
   fecha: { 
     type: Date, 
     default: Date.now // Si no le pasamos fecha, pone la de hoy
+  },
+  tipo: {
+    type: String,
+    enum: ['gasto', 'ingreso'],
+    required: true,
   }
 });
 
-module.exports = mongoose.model('Gasto', gastoSchema);
+module.exports = mongoose.model('Transaccion', transaccionSchema);

@@ -1,53 +1,54 @@
 const express = require('express');
 const router = express.Router();
-const Gasto = require('../models/Gasto'); 
+const Transaccion = require('../models/Transaccion'); 
 
-// RUTA 1: Obtener todos los gastos (GET)
+// Obtener todo
 router.get('/', async (req, res) => {
   try {
-    const gastos = await Gasto.find().sort({ fecha: -1 });
-    res.json(gastos);
+    const transacciones = await Transaccion.find().sort({ fecha: -1 });
+    res.json(transacciones);
   } catch (error) {
     res.status(500).json({ mensaje: error.message });
   }
 });
 
-// RUTA 2: Crear un nuevo gasto (POST)
+// Crear nueva
 router.post('/', async (req, res) => {
-  const nuevoGasto = new Gasto({
+  const nuevaTransaccion = new Transaccion({
     descripcion: req.body.descripcion,
     cantidad: req.body.cantidad,
     categoria: req.body.categoria,
-    fecha: req.body.fecha
+    fecha: req.body.fecha,
+    tipo: req.body.tipo
   });
 
   try {
-    const gastoGuardado = await nuevoGasto.save();
-    res.status(201).json(gastoGuardado); 
+    const guardada = await nuevaTransaccion.save();
+    res.status(201).json(guardada); 
   } catch (error) {
     res.status(400).json({ mensaje: error.message }); 
   }
 });
 
-// RUTA 3: Eliminar un gasto (DELETE) - ¡NUEVO!
+// Eliminar
 router.delete('/:id', async (req, res) => {
   try {
-    await Gasto.findByIdAndDelete(req.params.id);
-    res.json({ mensaje: 'Gasto eliminado correctamente' });
+    await Transaccion.findByIdAndDelete(req.params.id);
+    res.json({ mensaje: 'Eliminado correctamente' });
   } catch (error) {
     res.status(500).json({ mensaje: error.message });
   }
 });
 
-// RUTA 4: Actualizar un gasto (PUT) - ¡NUEVO!
+// Actualizar
 router.put('/:id', async (req, res) => {
   try {
-    const gastoActualizado = await Gasto.findByIdAndUpdate(
+    const actualizada = await Transaccion.findByIdAndUpdate(
       req.params.id,
       req.body,
-      { new: true } // Devuelve el dato ya actualizado
+      { new: true } 
     );
-    res.json(gastoActualizado);
+    res.json(actualizada);
   } catch (error) {
     res.status(400).json({ mensaje: error.message });
   }

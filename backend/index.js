@@ -8,8 +8,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const rutasGastos = require('./routes/gastos');
-app.use('/api/gastos', rutasGastos);
+const rutaTransacciones = require('./routes/transacciones');
+app.use('/api/transacciones', rutaTransacciones);
 
 app.get('/', (req, res) => {
   res.send('¡El servidor de finanzas está funcionando correctamente!');
