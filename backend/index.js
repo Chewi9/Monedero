@@ -14,10 +14,7 @@ app.use('/api/transacciones', rutaTransacciones);
 const rutasAuth = require('./routes/auth');
 app.use('/api/auth', rutasAuth);
 
-
-app.get('/', (req, res) => {
-  res.send('¡El servidor de finanzas está funcionando correctamente!');
-});
+mongoose.connect(process.env.MONGO_URI).then(() => console.log('Conectado a MongoDB')).catch(err => console.error('Erroral conectar a MongoDB', err));
 
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI;
