@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const Usuario = require('../models/Usuario');
+const auth = require('../middleware/authMiddleware');
 
 // Registro
 router.post('/registro', async (req, res) => {
@@ -57,6 +58,19 @@ router.post('/login', async (req, res) => {
   } catch (error) {
     res.status(500).json({ mensaje: error.message });
   }
+});
+
+router.put('/perfil', auth, async (req, res) => {
+    try {
+        const usuarioActualizado = await Usuario.findByIdAndUpdate(
+            req.usuario.id,
+            {nombre: req.body.nombre},
+            {new: true}
+        );
+        res.json({id: usuarioActualizado._id, nombre: usuarioActualizado.nombre, email: usuarioActualizado.email});
+    } catch (error) {
+        res.status(500).json({mensaje: error.message});
+    }
 });
 
 module.exports = router;
