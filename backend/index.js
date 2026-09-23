@@ -11,6 +11,10 @@ app.use(express.json());
 const rutaTransacciones = require('./routes/transacciones');
 app.use('/api/transacciones', rutaTransacciones);
 
+const rutasAuth = require('./routes/auth');
+app.use('/api/auth', rutasAuth);
+
+
 app.get('/', (req, res) => {
   res.send('¡El servidor de finanzas está funcionando correctamente!');
 });

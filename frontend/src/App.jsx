@@ -4,7 +4,73 @@ import { Pie } from 'react-chartjs-2';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
+// --- 1. PANTALLA DE LOGIN Y REGISTRO ---
+function PantallaLogin({ onLogin }) {
+  const [esRegistro, setEsRegistro] = useState(false);
+  const [formulario, setFormulario] = useState({ nombre: '', email: '', password: '' });
+  const [error, setError] = useState('');
+
+  const manejarCambio = (e) => setFormulario({ ...formulario, [e.target.name]: e.target.value });
+
+  const enviarFormulario = async (e) => {
+    e.preventDefault();
+    setError('');
+    const url = esRegistro ? 'http://localhost:5000/api/auth/registro' : 'http://localhost:5000/api/auth/login';
+    
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formulario)
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.mensaje || 'Error en la petición');
+        return;
+      }
+
+      if (esRegistro) {
+        alert('Registro exitoso. Ahora inicia sesión.');
+        setEsRegistro(false);
+      } else {
+        onLogin(data.token, data.usuario); // Pasamos los datos al componente principal
+      }
+    } catch (err) {
+      setError('Error de conexión con el servidor');
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#e2e8f0' }}>
+      <div style={{ backgroundColor: 'white', padding: '40px', borderRadius: '15px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', width: '350px' }}>
+        <h2 style={{ textAlign: 'center', marginBottom: '20px', color: '#333' }}>{esRegistro ? 'Crear Cuenta' : 'Iniciar Sesión'}</h2>
+        {error && <p style={{ color: '#d32f2f', textAlign: 'center', fontSize: '0.9rem', backgroundColor: '#ffebee', padding: '10px', borderRadius: '5px' }}>{error}</p>}
+        
+        <form onSubmit={enviarFormulario} style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '15px' }}>
+          {esRegistro && <input type="text" name="nombre" placeholder="Tu Nombre" value={formulario.nombre} onChange={manejarCambio} required style={inputStyle} />}
+          <input type="email" name="email" placeholder="Tu Email" value={formulario.email} onChange={manejarCambio} required style={inputStyle} />
+          <input type="password" name="password" placeholder="Contraseña" value={formulario.password} onChange={manejarCambio} required style={inputStyle} />
+          
+          <button type="submit" style={{ padding: '12px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1rem' }}>
+            {esRegistro ? 'Registrarse' : 'Entrar'}
+          </button>
+        </form>
+        
+        <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '0.9rem', cursor: 'pointer', color: '#2196F3', fontWeight: 'bold' }} onClick={() => setEsRegistro(!esRegistro)}>
+          {esRegistro ? '¿Ya tienes cuenta? Inicia sesión' : '¿No tienes cuenta? Regístrate'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// --- 2. APLICACIÓN PRINCIPAL ---
 function App() {
+  // ESTADOS DE SESIÓN (Buscamos en la memoria por si ya habíamos entrado)
+  const [token, setToken] = useState(localStorage.getItem('token') || null);
+  const [usuario, setUsuario] = useState(JSON.parse(localStorage.getItem('usuario')) || null);
+
   const [transacciones, setTransacciones] = useState([]);
   const [mostrarModalFormulario, setMostrarModalFormulario] = useState(false);
   const [diaSeleccionado, setDiaSeleccionado] = useState(null); 
@@ -23,13 +89,38 @@ function App() {
 
   const COLORES = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF19A3', '#e91e63', '#9c27b0'];
 
+  // FUNCIÓN PARA CERRAR SESIÓN
+  const cerrarSesion = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('usuario');
+    setToken(null);
+    setUsuario(null);
+    setTransacciones([]);
+  };
+
+  // CARGAR DATOS (Solo si hay token)
   useEffect(() => {
-    fetch('http://localhost:5000/api/transacciones') // URL actualizada
+    if (token) {
+      fetch('http://localhost:5000/api/transacciones', {
+        headers: { 'Authorization': `Bearer ${token}` } // Enviamos el Pase VIP
+      })
       .then(res => res.json())
       .then(datos => { if (Array.isArray(datos)) setTransacciones(datos); })
       .catch(err => console.error('Error:', err));
-  }, []);
+    }
+  }, [token]);
 
+  // Si no hay token, mostramos la pantalla de login
+  if (!token) {
+    return <PantallaLogin onLogin={(nuevoToken, datosUsuario) => {
+      localStorage.setItem('token', nuevoToken);
+      localStorage.setItem('usuario', JSON.stringify(datosUsuario));
+      setToken(nuevoToken);
+      setUsuario(datosUsuario);
+    }} />;
+  }
+
+  // --- LOGICA RESTANTE DEL GESTOR ---
   const manejarCambio = (e) => setFormulario({ ...formulario, [e.target.name]: e.target.value });
 
   const agregarCategoria = (e) => {
@@ -47,13 +138,17 @@ function App() {
     try {
       if (idEnEdicion) {
         const res = await fetch(`http://localhost:5000/api/transacciones/${idEnEdicion}`, {
-          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formulario)
+          method: 'PUT', 
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, 
+          body: JSON.stringify(formulario)
         });
         const actualizada = await res.json();
         setTransacciones(transacciones.map(t => t._id === idEnEdicion ? actualizada : t));
       } else {
         const res = await fetch('http://localhost:5000/api/transacciones', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formulario)
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, 
+          body: JSON.stringify(formulario)
         });
         const nueva = await res.json();
         setTransacciones([...transacciones, nueva]); 
@@ -67,7 +162,10 @@ function App() {
   const eliminarTransaccion = async (id) => {
     if (window.confirm('¿Seguro que quieres borrar esto?')) {
       try {
-        await fetch(`http://localhost:5000/api/transacciones/${id}`, { method: 'DELETE' });
+        await fetch(`http://localhost:5000/api/transacciones/${id}`, { 
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         setTransacciones(transacciones.filter(t => t._id !== id));
       } catch (error) { console.error('Error al borrar:', error); }
     }
@@ -111,82 +209,97 @@ function App() {
   const nombresMeses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
   return (
-    <div style={{ display: 'flex', fontFamily: 'Arial, sans-serif', padding: '20px', gap: '30px', minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
+    <div style={{ fontFamily: 'Arial, sans-serif', backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
       
-      <div style={{ flex: '2', backgroundColor: 'white', padding: '20px', borderRadius: '15px', boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <button onClick={() => cambiarMes(-1)} style={btnCalendario}>⬅ Anterior</button>
-          <h2 style={{ margin: 0 }}>📅 {nombresMeses[mesActual]} {añoActual}</h2>
-          <button onClick={() => cambiarMes(1)} style={btnCalendario}>Siguiente ➡</button>
+      {/* BARRA SUPERIOR (NAVBAR) */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 30px', backgroundColor: 'white', boxShadow: '0 2px 5px rgba(0,0,0,0.1)', marginBottom: '20px' }}>
+        <h2 style={{ margin: 0, color: '#333' }}>💸 Mis Finanzas</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+          <span style={{ fontWeight: 'bold', color: '#555' }}>Hola, {usuario?.nombre} 👋</span>
+          <button onClick={cerrarSesion} style={{ padding: '8px 15px', backgroundColor: '#f44336', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
+            Salir
+          </button>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', padding: '0 20px 20px', gap: '30px' }}>
+        {/* PANEL IZQUIERDO: Calendario */}
+        <div style={{ flex: '2', backgroundColor: 'white', padding: '20px', borderRadius: '15px', boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <button onClick={() => cambiarMes(-1)} style={btnCalendario}>⬅ Anterior</button>
+            <h2 style={{ margin: 0 }}>📅 {nombresMeses[mesActual]} {añoActual}</h2>
+            <button onClick={() => cambiarMes(1)} style={btnCalendario}>Siguiente ➡</button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '10px' }}>
+            {Array.from({ length: diasEnMes }).map((_, i) => {
+              const dia = i + 1;
+              const fechaString = `${añoActual}-${String(mesActual + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+              const transDelDia = transaccionesSeguras.filter(t => t.fecha && t.fecha.startsWith(fechaString));
+              
+              const ingresosDia = transDelDia.filter(t => t.tipo === 'ingreso').reduce((sum, t) => sum + (Number(t.cantidad) || 0), 0);
+              const gastosDia = transDelDia.filter(t => t.tipo === 'gasto').reduce((sum, t) => sum + (Number(t.cantidad) || 0), 0);
+
+              const esHoy = fechaString === hoy;
+
+              return (
+                <div 
+                  key={dia} onClick={() => setDiaSeleccionado(fechaString)}
+                  style={{ 
+                    minHeight: '80px', padding: '10px', 
+                    border: esHoy ? '2px solid #94a3b8' : '1px solid #eee', 
+                    borderRadius: '8px', backgroundColor: esHoy ? '#e2e8f0' : '#fafafa', 
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', transition: 'background 0.2s', position: 'relative'
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#dbeafe'}
+                  onMouseOut={(e) => e.currentTarget.style.backgroundColor = esHoy ? '#e2e8f0' : '#fafafa'}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <span style={{ fontWeight: esHoy ? 'bold' : 'normal', color: esHoy ? '#0f172a' : '#555' }}>{dia}</span>
+                    {esHoy && <span style={{ fontSize: '0.65rem', backgroundColor: '#64748b', color: 'white', padding: '1px 5px', borderRadius: '4px', fontWeight: 'bold' }}>Hoy</span>}
+                  </div>
+                  
+                  <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    {ingresosDia > 0 && <span style={{ color: '#2e7d32', fontWeight: 'bold', fontSize: '0.85rem' }}>+{ingresosDia}€</span>}
+                    {gastosDia > 0 && <span style={{ color: '#d32f2f', fontWeight: 'bold', fontSize: '0.85rem' }}>-{gastosDia}€</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '10px' }}>
-          {Array.from({ length: diasEnMes }).map((_, i) => {
-            const dia = i + 1;
-            const fechaString = `${añoActual}-${String(mesActual + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-            const transDelDia = transaccionesSeguras.filter(t => t.fecha && t.fecha.startsWith(fechaString));
-            
-            const ingresosDia = transDelDia.filter(t => t.tipo === 'ingreso').reduce((sum, t) => sum + (Number(t.cantidad) || 0), 0);
-            const gastosDia = transDelDia.filter(t => t.tipo === 'gasto').reduce((sum, t) => sum + (Number(t.cantidad) || 0), 0);
+        {/* PANEL DERECHO: Resumen y Gráfica */}
+        <div style={{ flex: '1', backgroundColor: 'white', padding: '20px', borderRadius: '15px', boxShadow: '0 4px 8px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2>Balance</h2>
+            <select value={filtroGrafica} onChange={(e) => setFiltroGrafica(e.target.value)} style={inputStyle}>
+              <option value="total">Histórico Total</option>
+              <option value="30">Últimos 30 días</option>
+              <option value="7">Últimos 7 días</option>
+            </select>
+          </div>
 
-            const esHoy = fechaString === hoy;
-
-            return (
-              <div 
-                key={dia} onClick={() => setDiaSeleccionado(fechaString)}
-                style={{ 
-                  minHeight: '80px', padding: '10px', 
-                  border: esHoy ? '2px solid #94a3b8' : '1px solid #eee', 
-                  borderRadius: '8px', backgroundColor: esHoy ? '#e2e8f0' : '#fafafa', 
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', transition: 'background 0.2s', position: 'relative'
-                }}
-                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#dbeafe'}
-                onMouseOut={(e) => e.currentTarget.style.backgroundColor = esHoy ? '#e2e8f0' : '#fafafa'}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <span style={{ fontWeight: esHoy ? 'bold' : 'normal', color: esHoy ? '#0f172a' : '#555' }}>{dia}</span>
-                  {esHoy && <span style={{ fontSize: '0.65rem', backgroundColor: '#64748b', color: 'white', padding: '1px 5px', borderRadius: '4px', fontWeight: 'bold' }}>Hoy</span>}
-                </div>
-                
-                <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  {ingresosDia > 0 && <span style={{ color: '#2e7d32', fontWeight: 'bold', fontSize: '0.85rem' }}>+{ingresosDia}€</span>}
-                  {gastosDia > 0 && <span style={{ color: '#d32f2f', fontWeight: 'bold', fontSize: '0.85rem' }}>-{gastosDia}€</span>}
-                </div>
+          <h1 style={{ color: balanceTotal >= 0 ? '#2e7d32' : '#d32f2f', fontSize: '3rem', margin: '10px 0', textAlign: 'center' }}>
+            {balanceTotal >= 0 ? '+' : ''}{balanceTotal}€
+          </h1>
+          
+          <p style={{ textAlign: 'center', color: '#666', marginBottom: '20px' }}>Ingresos: {totalIngresos}€ | Gastos: {totalGastos}€</p>
+          
+          <div style={{ flexGrow: 1, minHeight: '300px', display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
+            <h4 style={{ margin: '0 0 10px 0', color: '#555' }}>Desglose de Gastos</h4>
+            {categoriasConGastos.length > 0 ? (
+              <div style={{ width: '100%', maxWidth: '350px' }}>
+                <Pie data={dataParaChartJs} options={{ plugins: { legend: { position: 'bottom' } } }} />
               </div>
-            );
-          })}
+            ) : (
+              <p style={{ color: '#777', textAlign: 'center' }}>No hay gastos en este periodo</p>
+            )}
+          </div>
         </div>
       </div>
 
-
-      <div style={{ flex: '1', backgroundColor: 'white', padding: '20px', borderRadius: '15px', boxShadow: '0 4px 8px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2>Balance</h2>
-          <select value={filtroGrafica} onChange={(e) => setFiltroGrafica(e.target.value)} style={inputStyle}>
-            <option value="total">Histórico Total</option>
-            <option value="30">Últimos 30 días</option>
-            <option value="7">Últimos 7 días</option>
-          </select>
-        </div>
-
-        <h1 style={{ color: balanceTotal >= 0 ? '#2e7d32' : '#d32f2f', fontSize: '3rem', margin: '10px 0', textAlign: 'center' }}>
-          {balanceTotal >= 0 ? '+' : ''}{balanceTotal}€
-        </h1>
-        
-        <p style={{ textAlign: 'center', color: '#666', marginBottom: '20px' }}>Ingresos: {totalIngresos}€ | Gastos: {totalGastos}€</p>
-        
-        <div style={{ flexGrow: 1, minHeight: '300px', display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
-          <h4 style={{ margin: '0 0 10px 0', color: '#555' }}>Desglose de Gastos</h4>
-          {categoriasConGastos.length > 0 ? (
-            <div style={{ width: '100%', maxWidth: '350px' }}>
-              <Pie data={dataParaChartJs} options={{ plugins: { legend: { position: 'bottom' } } }} />
-            </div>
-          ) : (
-            <p style={{ color: '#777', textAlign: 'center' }}>No hay gastos en este periodo</p>
-          )}
-        </div>
-      </div>
-
+      {/* BOTÓN FLOTANTE */}
       <button 
         onClick={() => {
           setIdEnEdicion(null);
@@ -198,6 +311,7 @@ function App() {
         +
       </button>
 
+      {/* MODAL 1: DETALLE DEL DÍA */}
       {diaSeleccionado && (
         <div style={modalOverlayStyle}>
           <div style={modalContentStyle}>
@@ -228,6 +342,7 @@ function App() {
         </div>
       )}
 
+      {/* MODAL 2: FORMULARIO */}
       {mostrarModalFormulario && (
         <div style={modalOverlayStyle}>
           <div style={modalContentStyle}>
@@ -235,8 +350,6 @@ function App() {
             
             <h2>{idEnEdicion ? 'Editar Movimiento' : 'Añadir Movimiento'}</h2>
             <form onSubmit={guardarTransaccion} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              
-              {/* Selector de Gasto o Ingreso */}
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginBottom: '10px' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', fontWeight: formulario.tipo === 'gasto' ? 'bold' : 'normal' }}>
                   <input type="radio" name="tipo" value="gasto" checked={formulario.tipo === 'gasto'} onChange={manejarCambio} />
@@ -249,7 +362,7 @@ function App() {
               </div>
 
               <input type="text" name="descripcion" placeholder="Título (ej. Nómina, Supermercado)" value={formulario.descripcion} onChange={manejarCambio} required style={inputStyle} />
-              <input type="number" name="cantidad" placeholder="Cantidad (ej. 1500)" value={formulario.cantidad} onChange={manejarCambio} required style={inputStyle} />
+              <input type="number" name="cantidad" placeholder="Cantidad" value={formulario.cantidad} onChange={manejarCambio} required style={inputStyle} />
               <input type="date" name="fecha" value={formulario.fecha} onChange={manejarCambio} required style={inputStyle} />
               
               <div style={{ display: 'flex', gap: '10px' }}>
