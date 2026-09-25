@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "homepage": "https://Chewi9.github.io/Monedero",
+  "homepage": "https://chewi9.github.io/Monedero/",
   "scripts": {
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist",
