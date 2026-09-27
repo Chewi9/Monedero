@@ -1,0 +1,18 @@
+.calendario-container {
+  width: 100%;
+  overflow-x: auto; /* Permite hacer scroll horizontal si la pantalla es muy pequeña */
+}
+
+.calendario-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px; /* Espacio más pequeño en móvil */
+  min-width: 300px; /* Evita que los días se aplasten demasiado */
+}
+
+@media (max-width: 768px) {
+  .dia-calendario {
+    padding: 5px;
+    font-size: 0.85rem;
+  }
+}
