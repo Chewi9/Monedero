@@ -61,9 +61,8 @@ function App() {
   const [usuario, setUsuario] = useState(JSON.parse(localStorage.getItem('usuario')) || null);
   const [modoOscuro, setModoOscuro] = useState(() => localStorage.getItem('modoOscuro') === 'true');
 
-  // NUEVO ESTADO: VISTA ACTUAL
-  const [vista, setVista] = useState('calendario'); // 'calendario' o 'balance'
-  const [mesesBalance, setMesesBalance] = useState('1'); // Para el filtro de la vista balance
+  const [vista, setVista] = useState('calendario'); 
+  const [mesesBalance, setMesesBalance] = useState('1'); // Por defecto enseña 1 mes (el actual)
 
   const [transacciones, setTransacciones] = useState([]);
   const [mostrarModalFormulario, setMostrarModalFormulario] = useState(false);
@@ -82,7 +81,6 @@ function App() {
   const [nuevaCategoria, setNuevaCategoria] = useState('');
 
   const hoy = new Date().toISOString().split('T')[0];
-  // FORMULARIO ACTUALIZADO: Añadido metodoPago
   const [formulario, setFormulario] = useState({ descripcion: '', cantidad: '', categoria: '', fecha: hoy, tipo: 'gasto', metodoPago: 'tarjeta' });
 
   const COLORES = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF19A3', '#e91e63', '#9c27b0'];
@@ -191,14 +189,6 @@ function App() {
   const diasEnMes = new Date(añoActual, mesActual + 1, 0).getDate();
   const nombresMeses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
-  // --- LÓGICA VISTA BALANCE ---
-  const fechaLimiteBalance = new Date();
-  fechaLimiteBalance.setMonth(fechaLimiteBalance.getMonth() - parseInt(mesesBalance));
-  const transBalance = transaccionesSeguras.filter(t => new Date(t.fecha) >= fechaLimiteBalance);
-  
-  const gastosTarjeta = transBalance.filter(t => t.tipo === 'gasto' && t.metodoPago === 'tarjeta').reduce((acc, curr) => acc + (Number(curr.cantidad) || 0), 0);
-  const gastosEfectivo = transBalance.filter(t => t.tipo === 'gasto' && t.metodoPago === 'efectivo').reduce((acc, curr) => acc + (Number(curr.cantidad) || 0), 0);
-
   return (
     <div style={{ fontFamily: 'Arial, sans-serif', backgroundColor: tema.bgPrincipal, color: tema.texto, minHeight: '100vh', transition: '0.3s', paddingBottom: '80px' }}>
       
@@ -221,7 +211,7 @@ function App() {
       {/* CONTENIDO CONDICIONAL */}
       {vista === 'calendario' ? (
         <div style={{ display: 'flex', padding: '0 20px 20px', gap: '30px', flexWrap: 'wrap' }}>
-          {/* CALENDARIO (Con arreglo para móviles) */}
+          {/* CALENDARIO */}
           <div style={{ flex: '2', minWidth: '300px', backgroundColor: tema.bgPanel, padding: '20px', borderRadius: '15px', boxShadow: '0 4px 8px rgba(0,0,0,0.1)', overflowX: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <button onClick={() => cambiarMes(-1)} style={{...btnCalendario, backgroundColor: tema.inputBg, color: tema.texto}}>⬅</button>
@@ -276,30 +266,85 @@ function App() {
           </div>
         </div>
       ) : (
-        /* --- NUEVA VISTA: BALANCE DETALLADO --- */
-        <div style={{ padding: '0 20px', maxWidth: '800px', margin: '0 auto' }}>
-          <div style={{ backgroundColor: tema.bgPanel, padding: '20px', borderRadius: '15px', boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
-              <h2>Análisis de Gastos</h2>
-              <select value={mesesBalance} onChange={(e) => setMesesBalance(e.target.value)} style={{...inputStyle, backgroundColor: tema.inputBg, color: tema.texto}}>
-                <option value="0">Mes Actual</option>
-                <option value="1">Último mes</option>
-                <option value="3">Últimos 3 meses</option>
-                <option value="6">Últimos 6 meses</option>
-                <option value="12">Últimos 12 meses</option>
-              </select>
-            </div>
+        /* --- NUEVA VISTA: MÚLTIPLES GRÁFICOS POR MES --- */
+        <div style={{ padding: '0 20px', maxWidth: '1200px', margin: '0 auto' }}>
+          
+          {/* BARRA SUPERIOR DEL BALANCE */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', backgroundColor: tema.bgPanel, padding: '15px 20px', borderRadius: '15px', marginBottom: '20px', boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
+            <h2 style={{ margin: 0 }}>Análisis Mensual</h2>
+            <select value={mesesBalance} onChange={(e) => setMesesBalance(e.target.value)} style={{...inputStyle, backgroundColor: tema.inputBg, color: tema.texto}}>
+              <option value="1">Mes actual</option>
+              <option value="2">Últimos 2 meses</option>
+              <option value="3">Últimos 3 meses</option>
+              <option value="6">Últimos 6 meses</option>
+              <option value="12">Últimos 12 meses</option>
+            </select>
+          </div>
 
-            <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', marginBottom: '20px' }}>
-              <div style={{ flex: 1, backgroundColor: tema.inputBg, padding: '20px', borderRadius: '10px', textAlign: 'center', border: `1px solid ${tema.borde}` }}>
-                <h3 style={{ margin: '0 0 10px 0', color: tema.textoSecundario }}>💳 Gastado en Tarjeta</h3>
-                <span style={{ fontSize: '2rem', fontWeight: 'bold', color: '#F44336' }}>-{gastosTarjeta}€</span>
-              </div>
-              <div style={{ flex: 1, backgroundColor: tema.inputBg, padding: '20px', borderRadius: '10px', textAlign: 'center', border: `1px solid ${tema.borde}` }}>
-                <h3 style={{ margin: '0 0 10px 0', color: tema.textoSecundario }}>💵 Gastado en Efectivo</h3>
-                <span style={{ fontSize: '2rem', fontWeight: 'bold', color: '#F44336' }}>-{gastosEfectivo}€</span>
-              </div>
-            </div>
+          {/* GRID DE MESES (Se crean tantas tarjetas como hayas elegido) */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+            
+            {Array.from({ length: parseInt(mesesBalance) }).map((_, i) => {
+              // Calculamos el mes y año que toca en esta tarjeta
+              const fechaBucle = new Date();
+              fechaBucle.setMonth(fechaBucle.getMonth() - i);
+              const mesLoop = fechaBucle.getMonth();
+              const añoLoop = fechaBucle.getFullYear();
+              
+              // Filtramos transacciones EXCLUSIVAMENTE para este mes
+              const transDelMes = transaccionesSeguras.filter(t => {
+                if(!t.fecha) return false;
+                const dt = new Date(t.fecha);
+                return dt.getFullYear() === añoLoop && dt.getMonth() === mesLoop;
+              });
+
+              // Cálculos del mes
+              const gastosTarjeta = transDelMes.filter(t => t.tipo === 'gasto' && t.metodoPago === 'tarjeta').reduce((acc, curr) => acc + (Number(curr.cantidad) || 0), 0);
+              const gastosEfectivo = transDelMes.filter(t => t.tipo === 'gasto' && t.metodoPago === 'efectivo').reduce((acc, curr) => acc + (Number(curr.cantidad) || 0), 0);
+              const ingresosMes = transDelMes.filter(t => t.tipo === 'ingreso').reduce((acc, curr) => acc + (Number(curr.cantidad) || 0), 0);
+              const gastosMes = transDelMes.filter(t => t.tipo === 'gasto').reduce((acc, curr) => acc + (Number(curr.cantidad) || 0), 0);
+              const balanceMes = ingresosMes - gastosMes;
+
+              // Datos para la gráfica de este mes específico
+              const catGastos = categorias.map(cat => {
+                const totalCat = transDelMes.filter(t => t.tipo === 'gasto' && t.categoria === cat).reduce((acc, curr) => acc + (Number(curr.cantidad) || 0), 0);
+                return { name: cat, value: totalCat };
+              }).filter(data => data.value > 0); 
+              
+              const dataChart = { labels: catGastos.map(c => c.name), datasets: [{ data: catGastos.map(c => c.value), backgroundColor: COLORES, borderColor: tema.bgPanel, borderWidth: 2 }] };
+
+              return (
+                <div key={i} style={{ backgroundColor: tema.bgPanel, padding: '20px', borderRadius: '15px', boxShadow: '0 4px 8px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }}>
+                  <h3 style={{ textAlign: 'center', marginTop: 0, fontSize: '1.4rem' }}>{nombresMeses[mesLoop]} {añoLoop}</h3>
+                  <p style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '1.2rem', color: balanceMes >= 0 ? '#4CAF50' : '#F44336', margin: '5px 0 15px' }}>
+                    Balance: {balanceMes >= 0 ? '+' : ''}{balanceMes}€
+                  </p>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', backgroundColor: tema.inputBg, padding: '10px', borderRadius: '8px' }}>
+                    <div style={{ textAlign: 'center', flex: 1 }}>
+                      <small style={{ color: tema.textoSecundario }}>💳 Tarjeta</small>
+                      <div style={{ fontWeight: 'bold', color: '#F44336', fontSize: '1.1rem' }}>-{gastosTarjeta}€</div>
+                    </div>
+                    <div style={{ width: '1px', backgroundColor: tema.borde }}></div>
+                    <div style={{ textAlign: 'center', flex: 1 }}>
+                      <small style={{ color: tema.textoSecundario }}>💵 Efectivo</small>
+                      <div style={{ fontWeight: 'bold', color: '#F44336', fontSize: '1.1rem' }}>-{gastosEfectivo}€</div>
+                    </div>
+                  </div>
+
+                  {/* LA GRÁFICA INDEPENDIENTE DEL MES */}
+                  <div style={{ height: '220px', display: 'flex', justifyContent: 'center', flexGrow: 1 }}>
+                    {catGastos.length > 0 ? (
+                       <Pie data={dataChart} options={{ maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: tema.texto, boxWidth: 12, font: {size: 11} } } } }} />
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', color: tema.textoSecundario }}>
+                        Sin gastos registrados
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -382,6 +427,7 @@ function App() {
           </div>
         </div>
       )}
+      
       {/* MODAL EDITAR PERFIL */}
       {mostrarModalPerfil && (
         <div style={modalOverlayStyle}>
