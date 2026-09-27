@@ -1,0 +1,15 @@
+{
+  "name": "Monedero App",
+  "short_name": "Monedero",
+  "start_url": "/Monedero/",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#2196F3",
+  "icons": [
+    {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Wallet_icon.svg/512px-Wallet_icon.svg.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

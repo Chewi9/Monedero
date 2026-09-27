@@ -59,13 +59,15 @@ function PantallaLogin({ onLogin, tema }) {
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token') || null);
   const [usuario, setUsuario] = useState(JSON.parse(localStorage.getItem('usuario')) || null);
-
-  // ESTADO DEL MODO OSCURO (Guardado en memoria)
   const [modoOscuro, setModoOscuro] = useState(() => localStorage.getItem('modoOscuro') === 'true');
+
+  // NUEVO ESTADO: VISTA ACTUAL
+  const [vista, setVista] = useState('calendario'); // 'calendario' o 'balance'
+  const [mesesBalance, setMesesBalance] = useState('1'); // Para el filtro de la vista balance
 
   const [transacciones, setTransacciones] = useState([]);
   const [mostrarModalFormulario, setMostrarModalFormulario] = useState(false);
-  const [mostrarModalPerfil, setMostrarModalPerfil] = useState(false); // Modal para editar nombre
+  const [mostrarModalPerfil, setMostrarModalPerfil] = useState(false); 
   const [nuevoNombre, setNuevoNombre] = useState('');
   
   const [diaSeleccionado, setDiaSeleccionado] = useState(null); 
@@ -80,11 +82,11 @@ function App() {
   const [nuevaCategoria, setNuevaCategoria] = useState('');
 
   const hoy = new Date().toISOString().split('T')[0];
-  const [formulario, setFormulario] = useState({ descripcion: '', cantidad: '', categoria: '', fecha: hoy, tipo: 'gasto' });
+  // FORMULARIO ACTUALIZADO: Añadido metodoPago
+  const [formulario, setFormulario] = useState({ descripcion: '', cantidad: '', categoria: '', fecha: hoy, tipo: 'gasto', metodoPago: 'tarjeta' });
 
   const COLORES = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF19A3', '#e91e63', '#9c27b0'];
 
-  // COLORES DINÁMICOS SEGÚN EL TEMA
   const tema = {
     bgPrincipal: modoOscuro ? '#121212' : '#f5f5f5',
     bgPanel: modoOscuro ? '#1e1e1e' : '#ffffff',
@@ -93,12 +95,12 @@ function App() {
     borde: modoOscuro ? '#333' : '#eee',
     bgHover: modoOscuro ? '#2c2c2c' : '#fafafa',
     inputBg: modoOscuro ? '#2d2d2d' : '#ffffff',
-    diaHoy: modoOscuro ? '#37474f' : '#e2e8f0', // Color del día actual
+    diaHoy: modoOscuro ? '#37474f' : '#e2e8f0', 
   };
 
   useEffect(() => {
     localStorage.setItem('modoOscuro', modoOscuro);
-    document.body.style.backgroundColor = tema.bgPrincipal; // Aplica fondo a toda la página
+    document.body.style.backgroundColor = tema.bgPrincipal; 
   }, [modoOscuro, tema.bgPrincipal]);
 
   useEffect(() => {
@@ -114,14 +116,11 @@ function App() {
 
   const cerrarSesion = () => { localStorage.removeItem('token'); localStorage.removeItem('usuario'); setToken(null); setUsuario(null); setTransacciones([]); };
 
-  // ACTUALIZAR PERFIL
   const guardarPerfil = async (e) => {
     e.preventDefault();
     try {
       const res = await fetch('https://monedero-qbte.onrender.com/api/auth/perfil', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ nombre: nuevoNombre })
+        method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ nombre: nuevoNombre })
       });
       const data = await res.json();
       setUsuario(data);
@@ -158,7 +157,7 @@ function App() {
         const nueva = await res.json();
         setTransacciones([...transacciones, nueva]); 
       }
-      setMostrarModalFormulario(false); setIdEnEdicion(null); setFormulario({ descripcion: '', cantidad: '', categoria: '', fecha: hoy, tipo: 'gasto' }); 
+      setMostrarModalFormulario(false); setIdEnEdicion(null); setFormulario({ descripcion: '', cantidad: '', categoria: '', fecha: hoy, tipo: 'gasto', metodoPago: 'tarjeta' }); 
     } catch (error) { console.error('Error:', error); }
   };
 
@@ -192,79 +191,121 @@ function App() {
   const diasEnMes = new Date(añoActual, mesActual + 1, 0).getDate();
   const nombresMeses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
+  // --- LÓGICA VISTA BALANCE ---
+  const fechaLimiteBalance = new Date();
+  fechaLimiteBalance.setMonth(fechaLimiteBalance.getMonth() - parseInt(mesesBalance));
+  const transBalance = transaccionesSeguras.filter(t => new Date(t.fecha) >= fechaLimiteBalance);
+  
+  const gastosTarjeta = transBalance.filter(t => t.tipo === 'gasto' && t.metodoPago === 'tarjeta').reduce((acc, curr) => acc + (Number(curr.cantidad) || 0), 0);
+  const gastosEfectivo = transBalance.filter(t => t.tipo === 'gasto' && t.metodoPago === 'efectivo').reduce((acc, curr) => acc + (Number(curr.cantidad) || 0), 0);
+
   return (
-    <div style={{ fontFamily: 'Arial, sans-serif', backgroundColor: tema.bgPrincipal, color: tema.texto, minHeight: '100vh', transition: '0.3s' }}>
+    <div style={{ fontFamily: 'Arial, sans-serif', backgroundColor: tema.bgPrincipal, color: tema.texto, minHeight: '100vh', transition: '0.3s', paddingBottom: '80px' }}>
       
       {/* NAVBAR */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 30px', backgroundColor: tema.bgPanel, boxShadow: '0 2px 5px rgba(0,0,0,0.1)', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 30px', backgroundColor: tema.bgPanel, boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}>
         <h2 style={{ margin: 0 }}>Mis Finanzas</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <button onClick={() => setModoOscuro(!modoOscuro)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }}>
-            {modoOscuro ? '☀' : '☾'}
-          </button>
+          <button onClick={() => setModoOscuro(!modoOscuro)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }}>{modoOscuro ? '☀' : '☾'}</button>
           <button onClick={() => { setNuevoNombre(usuario.nombre); setMostrarModalPerfil(true); }} style={{ padding: '8px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>⚙️</button>
           <button onClick={cerrarSesion} style={{ padding: '8px 15px', backgroundColor: '#f44336', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>Salir</button>
         </div>
       </div>
 
-      <div style={{ display: 'flex', padding: '0 20px 20px', gap: '30px', flexWrap: 'wrap' }}>
-        {/* CALENDARIO */}
-        <div style={{ flex: '2', minWidth: '300px', backgroundColor: tema.bgPanel, padding: '20px', borderRadius: '15px', boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <button onClick={() => cambiarMes(-1)} style={{...btnCalendario, backgroundColor: tema.inputBg, color: tema.texto}}>⬅</button>
-            <h2 style={{ margin: 0 }}>{nombresMeses[mesActual]} {añoActual}</h2>
-            <button onClick={() => cambiarMes(1)} style={{...btnCalendario, backgroundColor: tema.inputBg, color: tema.texto}}>➡</button>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '10px' }}>
-            {Array.from({ length: diasEnMes }).map((_, i) => {
-              const dia = i + 1;
-              const fechaString = `${añoActual}-${String(mesActual + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-              const transDelDia = transaccionesSeguras.filter(t => t.fecha && t.fecha.startsWith(fechaString));
-              const ingresosDia = transDelDia.filter(t => t.tipo === 'ingreso').reduce((sum, t) => sum + (Number(t.cantidad) || 0), 0);
-              const gastosDia = transDelDia.filter(t => t.tipo === 'gasto').reduce((sum, t) => sum + (Number(t.cantidad) || 0), 0);
-              const esHoy = fechaString === hoy;
-
-              return (
-                <div key={dia} onClick={() => setDiaSeleccionado(fechaString)}
-                  style={{ minHeight: '80px', padding: '10px', border: esHoy ? `2px solid #2196F3` : `1px solid ${tema.borde}`, borderRadius: '8px', backgroundColor: esHoy ? tema.diaHoy : tema.bgPanel, display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', transition: '0.2s' }}
-                  onMouseOver={(e) => e.currentTarget.style.backgroundColor = tema.bgHover}
-                  onMouseOut={(e) => e.currentTarget.style.backgroundColor = esHoy ? tema.diaHoy : tema.bgPanel}
-                >
-                  <span style={{ fontWeight: esHoy ? 'bold' : 'normal' }}>{dia}</span>
-                  <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    {ingresosDia > 0 && <span style={{ color: '#4CAF50', fontWeight: 'bold', fontSize: '0.85rem' }}>+{ingresosDia}</span>}
-                    {gastosDia > 0 && <span style={{ color: '#F44336', fontWeight: 'bold', fontSize: '0.85rem' }}>-{gastosDia}</span>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* RESUMEN */}
-        <div style={{ flex: '1', minWidth: '300px', backgroundColor: tema.bgPanel, padding: '20px', borderRadius: '15px', boxShadow: '0 4px 8px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2>Balance</h2>
-            <select value={filtroGrafica} onChange={(e) => setFiltroGrafica(e.target.value)} style={{...inputStyle, backgroundColor: tema.inputBg, color: tema.texto}}>
-              <option value="total">Histórico Total</option>
-              <option value="30">Últimos 30 días</option>
-              <option value="7">Últimos 7 días</option>
-            </select>
-          </div>
-          <h1 style={{ color: balanceTotal >= 0 ? '#4CAF50' : '#F44336', fontSize: '3rem', margin: '10px 0', textAlign: 'center' }}>
-            {balanceTotal >= 0 ? '+' : ''}{balanceTotal}€
-          </h1>
-          <p style={{ textAlign: 'center', color: tema.textoSecundario, marginBottom: '20px' }}>Ingresos: {totalIngresos}€ | Gastos: {totalGastos}€</p>
-          <div style={{ flexGrow: 1, minHeight: '300px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-            {categoriasConGastos.length > 0 ? (
-              <div style={{ width: '100%', maxWidth: '300px' }}><Pie data={dataParaChartJs} options={{ plugins: { legend: { position: 'bottom', labels: { color: tema.texto } } } }} /></div>
-            ) : <p style={{ color: tema.textoSecundario }}>No hay gastos en este periodo</p>}
-          </div>
-        </div>
+      {/* BOTONES DE VISTA */}
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', padding: '20px' }}>
+        <button onClick={() => setVista('calendario')} style={{ ...btnNavegacion, backgroundColor: vista === 'calendario' ? '#2196F3' : tema.bgPanel, color: vista === 'calendario' ? 'white' : tema.texto, border: `1px solid ${vista === 'calendario' ? '#2196F3' : tema.borde}` }}>📅 Calendario</button>
+        <button onClick={() => setVista('balance')} style={{ ...btnNavegacion, backgroundColor: vista === 'balance' ? '#2196F3' : tema.bgPanel, color: vista === 'balance' ? 'white' : tema.texto, border: `1px solid ${vista === 'balance' ? '#2196F3' : tema.borde}` }}>📊 Balance Detallado</button>
       </div>
 
-      <button onClick={() => { setIdEnEdicion(null); setFormulario({ descripcion: '', cantidad: '', categoria: '', fecha: hoy, tipo: 'gasto' }); setMostrarModalFormulario(true); }}
+      {/* CONTENIDO CONDICIONAL */}
+      {vista === 'calendario' ? (
+        <div style={{ display: 'flex', padding: '0 20px 20px', gap: '30px', flexWrap: 'wrap' }}>
+          {/* CALENDARIO (Con arreglo para móviles) */}
+          <div style={{ flex: '2', minWidth: '300px', backgroundColor: tema.bgPanel, padding: '20px', borderRadius: '15px', boxShadow: '0 4px 8px rgba(0,0,0,0.1)', overflowX: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <button onClick={() => cambiarMes(-1)} style={{...btnCalendario, backgroundColor: tema.inputBg, color: tema.texto}}>⬅</button>
+              <h2 style={{ margin: 0 }}>{nombresMeses[mesActual]} {añoActual}</h2>
+              <button onClick={() => cambiarMes(1)} style={{...btnCalendario, backgroundColor: tema.inputBg, color: tema.texto}}>➡</button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '5px', minWidth: '400px' }}>
+              {Array.from({ length: diasEnMes }).map((_, i) => {
+                const dia = i + 1;
+                const fechaString = `${añoActual}-${String(mesActual + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+                const transDelDia = transaccionesSeguras.filter(t => t.fecha && t.fecha.startsWith(fechaString));
+                const ingresosDia = transDelDia.filter(t => t.tipo === 'ingreso').reduce((sum, t) => sum + (Number(t.cantidad) || 0), 0);
+                const gastosDia = transDelDia.filter(t => t.tipo === 'gasto').reduce((sum, t) => sum + (Number(t.cantidad) || 0), 0);
+                const esHoy = fechaString === hoy;
+
+                return (
+                  <div key={dia} onClick={() => setDiaSeleccionado(fechaString)}
+                    style={{ minHeight: '70px', padding: '5px', border: esHoy ? `2px solid #2196F3` : `1px solid ${tema.borde}`, borderRadius: '8px', backgroundColor: esHoy ? tema.diaHoy : tema.bgPanel, display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', transition: '0.2s' }}
+                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = tema.bgHover}
+                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = esHoy ? tema.diaHoy : tema.bgPanel}
+                  >
+                    <span style={{ fontWeight: esHoy ? 'bold' : 'normal', fontSize: '0.9rem' }}>{dia}</span>
+                    <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      {ingresosDia > 0 && <span style={{ color: '#4CAF50', fontWeight: 'bold', fontSize: '0.75rem' }}>+{ingresosDia}</span>}
+                      {gastosDia > 0 && <span style={{ color: '#F44336', fontWeight: 'bold', fontSize: '0.75rem' }}>-{gastosDia}</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* RESUMEN LATERAL */}
+          <div style={{ flex: '1', minWidth: '300px', backgroundColor: tema.bgPanel, padding: '20px', borderRadius: '15px', boxShadow: '0 4px 8px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2>Resumen</h2>
+              <select value={filtroGrafica} onChange={(e) => setFiltroGrafica(e.target.value)} style={{...inputStyle, backgroundColor: tema.inputBg, color: tema.texto, padding: '5px'}}>
+                <option value="total">Total</option>
+                <option value="30">30 días</option>
+                <option value="7">7 días</option>
+              </select>
+            </div>
+            <h1 style={{ color: balanceTotal >= 0 ? '#4CAF50' : '#F44336', fontSize: '2.5rem', margin: '10px 0', textAlign: 'center' }}>
+              {balanceTotal >= 0 ? '+' : ''}{balanceTotal}€
+            </h1>
+            <div style={{ flexGrow: 1, minHeight: '250px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              {categoriasConGastos.length > 0 ? (
+                <div style={{ width: '100%', maxWidth: '250px' }}><Pie data={dataParaChartJs} options={{ plugins: { legend: { position: 'bottom', labels: { color: tema.texto } } } }} /></div>
+              ) : <p style={{ color: tema.textoSecundario }}>No hay gastos en este periodo</p>}
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* --- NUEVA VISTA: BALANCE DETALLADO --- */
+        <div style={{ padding: '0 20px', maxWidth: '800px', margin: '0 auto' }}>
+          <div style={{ backgroundColor: tema.bgPanel, padding: '20px', borderRadius: '15px', boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
+              <h2>Análisis de Gastos</h2>
+              <select value={mesesBalance} onChange={(e) => setMesesBalance(e.target.value)} style={{...inputStyle, backgroundColor: tema.inputBg, color: tema.texto}}>
+                <option value="0">Mes Actual</option>
+                <option value="1">Último mes</option>
+                <option value="3">Últimos 3 meses</option>
+                <option value="6">Últimos 6 meses</option>
+                <option value="12">Últimos 12 meses</option>
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', marginBottom: '20px' }}>
+              <div style={{ flex: 1, backgroundColor: tema.inputBg, padding: '20px', borderRadius: '10px', textAlign: 'center', border: `1px solid ${tema.borde}` }}>
+                <h3 style={{ margin: '0 0 10px 0', color: tema.textoSecundario }}>💳 Gastado en Tarjeta</h3>
+                <span style={{ fontSize: '2rem', fontWeight: 'bold', color: '#F44336' }}>-{gastosTarjeta}€</span>
+              </div>
+              <div style={{ flex: 1, backgroundColor: tema.inputBg, padding: '20px', borderRadius: '10px', textAlign: 'center', border: `1px solid ${tema.borde}` }}>
+                <h3 style={{ margin: '0 0 10px 0', color: tema.textoSecundario }}>💵 Gastado en Efectivo</h3>
+                <span style={{ fontSize: '2rem', fontWeight: 'bold', color: '#F44336' }}>-{gastosEfectivo}€</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BOTÓN FLOTANTE */}
+      <button onClick={() => { setIdEnEdicion(null); setFormulario({ descripcion: '', cantidad: '', categoria: '', fecha: hoy, tipo: 'gasto', metodoPago: 'tarjeta' }); setMostrarModalFormulario(true); }}
         style={{ position: 'fixed', bottom: '30px', right: '30px', width: '60px', height: '60px', borderRadius: '50%', backgroundColor: '#2196F3', color: 'white', fontSize: '30px', border: 'none', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         +
       </button>
@@ -279,10 +320,13 @@ function App() {
               {transaccionesSeguras.filter(t => t.fecha && t.fecha.startsWith(diaSeleccionado)).length > 0 ? 
                 transaccionesSeguras.filter(t => t.fecha && t.fecha.startsWith(diaSeleccionado)).map(t => (
                   <li key={t._id} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', borderBottom: `1px solid ${tema.borde}` }}>
-                    <div><strong>{t.descripcion}</strong> <br/><small style={{ color: tema.textoSecundario }}>{t.categoria}</small></div>
+                    <div>
+                      <strong>{t.descripcion}</strong> <small>({t.metodoPago === 'efectivo' ? '💵' : '💳'})</small><br/>
+                      <small style={{ color: tema.textoSecundario }}>{t.categoria}</small>
+                    </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <span style={{ color: t.tipo === 'ingreso' ? '#4CAF50' : '#F44336', fontWeight: 'bold' }}>{t.tipo === 'ingreso' ? '+' : '-'}{t.cantidad}€</span>
-                      <button onClick={() => { setFormulario({ descripcion: t.descripcion, cantidad: t.cantidad, categoria: t.categoria, fecha: t.fecha.split('T')[0], tipo: t.tipo }); setIdEnEdicion(t._id); setDiaSeleccionado(null); setMostrarModalFormulario(true); }} style={btnAccion}>✏️</button>
+                      <button onClick={() => { setFormulario({ descripcion: t.descripcion, cantidad: t.cantidad, categoria: t.categoria, fecha: t.fecha.split('T')[0], tipo: t.tipo, metodoPago: t.metodoPago || 'tarjeta' }); setIdEnEdicion(t._id); setDiaSeleccionado(null); setMostrarModalFormulario(true); }} style={btnAccion}>✏️</button>
                       <button onClick={() => eliminarTransaccion(t._id)} style={btnAccion}>🗑️</button>
                     </div>
                   </li>
@@ -299,30 +343,45 @@ function App() {
           <div style={{...modalContentStyle, backgroundColor: tema.bgPanel, color: tema.texto}}>
             <button onClick={() => setMostrarModalFormulario(false)} style={{...closeBtnStyle, color: tema.texto}}>✖</button>
             <h2>{idEnEdicion ? 'Editar Movimiento' : 'Nuevo Movimiento'}</h2>
-            <form onSubmit={guardarTransaccion} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            <form onSubmit={guardarTransaccion} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
                 <label><input type="radio" name="tipo" value="gasto" checked={formulario.tipo === 'gasto'} onChange={manejarCambio} /> 🔴 Gasto</label>
                 <label><input type="radio" name="tipo" value="ingreso" checked={formulario.tipo === 'ingreso'} onChange={manejarCambio} /> 🟢 Ingreso</label>
               </div>
+
               <input type="text" name="descripcion" placeholder="Título" value={formulario.descripcion} onChange={manejarCambio} required style={{...inputStyle, backgroundColor: tema.inputBg, color: tema.texto, borderColor: tema.borde}} />
-              <input type="number" name="cantidad" placeholder="Cantidad" value={formulario.cantidad} onChange={manejarCambio} required style={{...inputStyle, backgroundColor: tema.inputBg, color: tema.texto, borderColor: tema.borde}} />
-              <input type="date" name="fecha" value={formulario.fecha} onChange={manejarCambio} required style={{...inputStyle, backgroundColor: tema.inputBg, color: tema.texto, borderColor: tema.borde}} />
+              
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <input type="number" name="cantidad" placeholder="Cantidad" value={formulario.cantidad} onChange={manejarCambio} required style={{...inputStyle, flex: 1, backgroundColor: tema.inputBg, color: tema.texto, borderColor: tema.borde}} />
+                <input type="date" name="fecha" value={formulario.fecha} onChange={manejarCambio} required style={{...inputStyle, flex: 1, backgroundColor: tema.inputBg, color: tema.texto, borderColor: tema.borde}} />
+              </div>
+
+              {/* SELECCIÓN TARJETA / EFECTIVO (Solo visible si es gasto) */}
+              {formulario.tipo === 'gasto' && (
+                <div style={{ display: 'flex', justifyContent: 'space-around', padding: '10px', backgroundColor: tema.inputBg, borderRadius: '8px', border: `1px solid ${tema.borde}` }}>
+                  <label style={{ cursor: 'pointer' }}><input type="radio" name="metodoPago" value="tarjeta" checked={formulario.metodoPago === 'tarjeta'} onChange={manejarCambio} /> 💳 Tarjeta</label>
+                  <label style={{ cursor: 'pointer' }}><input type="radio" name="metodoPago" value="efectivo" checked={formulario.metodoPago === 'efectivo'} onChange={manejarCambio} /> 💵 Efectivo</label>
+                </div>
+              )}
+
               <select name="categoria" value={formulario.categoria} onChange={manejarCambio} required style={{...inputStyle, backgroundColor: tema.inputBg, color: tema.texto, borderColor: tema.borde}}>
                 <option value="" disabled>Categoría...</option>
                 {categorias.map(cat => <option key={cat} value={cat}>{cat}</option>)}
               </select>
+
               <div style={{ display: 'flex', gap: '5px' }}>
-                <input type="text" placeholder="Nueva..." value={nuevaCategoria} onChange={(e) => setNuevaCategoria(e.target.value)} style={{...inputStyle, flex: 1, backgroundColor: tema.inputBg, color: tema.texto, borderColor: tema.borde}} />
+                <input type="text" placeholder="Nueva categoría..." value={nuevaCategoria} onChange={(e) => setNuevaCategoria(e.target.value)} style={{...inputStyle, flex: 1, backgroundColor: tema.inputBg, color: tema.texto, borderColor: tema.borde}} />
                 <button type="button" onClick={agregarCategoria} style={{ padding: '10px', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '5px' }}>Añadir</button>
               </div>
-              <button type="submit" style={{ padding: '15px', backgroundColor: idEnEdicion ? '#ff9800' : (formulario.tipo === 'ingreso' ? '#4CAF50' : '#F44336'), color: 'white', border: 'none', borderRadius: '8px', fontSize: '1.1rem', fontWeight: 'bold' }}>
+
+              <button type="submit" style={{ padding: '15px', backgroundColor: idEnEdicion ? '#ff9800' : (formulario.tipo === 'ingreso' ? '#4CAF50' : '#F44336'), color: 'white', border: 'none', borderRadius: '8px', fontSize: '1.1rem', fontWeight: 'bold', marginTop: '5px' }}>
                 {idEnEdicion ? 'Actualizar' : 'Guardar'}
               </button>
             </form>
           </div>
         </div>
       )}
-
       {/* MODAL EDITAR PERFIL */}
       {mostrarModalPerfil && (
         <div style={modalOverlayStyle}>
@@ -342,8 +401,9 @@ function App() {
 
 const inputStyle = { padding: '10px', borderRadius: '8px', border: '1px solid #ccc', fontSize: '1rem', outline: 'none' };
 const btnCalendario = { padding: '8px 15px', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' };
+const btnNavegacion = { padding: '10px 20px', borderRadius: '20px', cursor: 'pointer', fontWeight: 'bold', transition: '0.2s' };
 const modalOverlayStyle = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 };
-const modalContentStyle = { padding: '30px', borderRadius: '15px', width: '90%', maxWidth: '400px', position: 'relative' };
+const modalContentStyle = { padding: '25px', borderRadius: '15px', width: '90%', maxWidth: '400px', position: 'relative' };
 const closeBtnStyle = { position: 'absolute', top: '10px', right: '15px', background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer' };
 const btnAccion = { background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer' };
 
