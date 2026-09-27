@@ -4,6 +4,12 @@ import { Pie } from 'react-chartjs-2';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
+// FUNCIÓN MÁGICA PARA REDONDEAR A 4 DECIMALES EXACTOS
+const redondear = (num) => {
+  const numero = Number(num);
+  return isNaN(numero) ? 0 : Number(numero.toFixed(4));
+};
+
 // --- 1. PANTALLA DE LOGIN ---
 function PantallaLogin({ onLogin, tema }) {
   const [esRegistro, setEsRegistro] = useState(false);
@@ -62,7 +68,7 @@ function App() {
   const [modoOscuro, setModoOscuro] = useState(() => localStorage.getItem('modoOscuro') === 'true');
 
   const [vista, setVista] = useState('calendario'); 
-  const [mesesBalance, setMesesBalance] = useState('1'); // Por defecto enseña 1 mes (el actual)
+  const [mesesBalance, setMesesBalance] = useState('1'); 
 
   const [transacciones, setTransacciones] = useState([]);
   const [mostrarModalFormulario, setMostrarModalFormulario] = useState(false);
@@ -173,13 +179,14 @@ function App() {
   if (filtroGrafica === '30') fechaLimite.setDate(fechaLimite.getDate() - 30);
   const transFiltradas = filtroGrafica === 'total' ? transaccionesSeguras : transaccionesSeguras.filter(t => new Date(t.fecha) >= fechaLimite);
 
-  const totalIngresos = transFiltradas.filter(t => t.tipo === 'ingreso').reduce((acc, curr) => acc + (Number(curr.cantidad) || 0), 0);
-  const totalGastos = transFiltradas.filter(t => t.tipo === 'gasto').reduce((acc, curr) => acc + (Number(curr.cantidad) || 0), 0);
-  const balanceTotal = totalIngresos - totalGastos;
+  // REDONDEAMOS TOTALES
+  const totalIngresos = redondear(transFiltradas.filter(t => t.tipo === 'ingreso').reduce((acc, curr) => acc + (Number(curr.cantidad) || 0), 0));
+  const totalGastos = redondear(transFiltradas.filter(t => t.tipo === 'gasto').reduce((acc, curr) => acc + (Number(curr.cantidad) || 0), 0));
+  const balanceTotal = redondear(totalIngresos - totalGastos);
 
   const categoriasConGastos = categorias.map(cat => {
     const totalCat = transFiltradas.filter(t => t.tipo === 'gasto' && t.categoria === cat).reduce((acc, curr) => acc + (Number(curr.cantidad) || 0), 0);
-    return { name: cat, value: totalCat };
+    return { name: cat, value: redondear(totalCat) };
   }).filter(d => d.value > 0); 
   const dataParaChartJs = { labels: categoriasConGastos.map(c => c.name), datasets: [{ data: categoriasConGastos.map(c => c.value), backgroundColor: COLORES, borderColor: tema.bgPanel, borderWidth: 2 }] };
 
@@ -224,8 +231,8 @@ function App() {
                 const dia = i + 1;
                 const fechaString = `${añoActual}-${String(mesActual + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
                 const transDelDia = transaccionesSeguras.filter(t => t.fecha && t.fecha.startsWith(fechaString));
-                const ingresosDia = transDelDia.filter(t => t.tipo === 'ingreso').reduce((sum, t) => sum + (Number(t.cantidad) || 0), 0);
-                const gastosDia = transDelDia.filter(t => t.tipo === 'gasto').reduce((sum, t) => sum + (Number(t.cantidad) || 0), 0);
+                const ingresosDia = redondear(transDelDia.filter(t => t.tipo === 'ingreso').reduce((sum, t) => sum + (Number(t.cantidad) || 0), 0));
+                const gastosDia = redondear(transDelDia.filter(t => t.tipo === 'gasto').reduce((sum, t) => sum + (Number(t.cantidad) || 0), 0));
                 const esHoy = fechaString === hoy;
 
                 return (
@@ -281,34 +288,31 @@ function App() {
             </select>
           </div>
 
-          {/* GRID DE MESES (Se crean tantas tarjetas como hayas elegido) */}
+          {/* GRID DE MESES */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
             
             {Array.from({ length: parseInt(mesesBalance) }).map((_, i) => {
-              // Calculamos el mes y año que toca en esta tarjeta
               const fechaBucle = new Date();
               fechaBucle.setMonth(fechaBucle.getMonth() - i);
               const mesLoop = fechaBucle.getMonth();
               const añoLoop = fechaBucle.getFullYear();
               
-              // Filtramos transacciones EXCLUSIVAMENTE para este mes
               const transDelMes = transaccionesSeguras.filter(t => {
                 if(!t.fecha) return false;
                 const dt = new Date(t.fecha);
                 return dt.getFullYear() === añoLoop && dt.getMonth() === mesLoop;
               });
 
-              // Cálculos del mes
-              const gastosTarjeta = transDelMes.filter(t => t.tipo === 'gasto' && t.metodoPago === 'tarjeta').reduce((acc, curr) => acc + (Number(curr.cantidad) || 0), 0);
-              const gastosEfectivo = transDelMes.filter(t => t.tipo === 'gasto' && t.metodoPago === 'efectivo').reduce((acc, curr) => acc + (Number(curr.cantidad) || 0), 0);
-              const ingresosMes = transDelMes.filter(t => t.tipo === 'ingreso').reduce((acc, curr) => acc + (Number(curr.cantidad) || 0), 0);
-              const gastosMes = transDelMes.filter(t => t.tipo === 'gasto').reduce((acc, curr) => acc + (Number(curr.cantidad) || 0), 0);
-              const balanceMes = ingresosMes - gastosMes;
+              // Cálculos REDONDEADOS
+              const gastosTarjeta = redondear(transDelMes.filter(t => t.tipo === 'gasto' && t.metodoPago === 'tarjeta').reduce((acc, curr) => acc + (Number(curr.cantidad) || 0), 0));
+              const gastosEfectivo = redondear(transDelMes.filter(t => t.tipo === 'gasto' && t.metodoPago === 'efectivo').reduce((acc, curr) => acc + (Number(curr.cantidad) || 0), 0));
+              const ingresosMes = redondear(transDelMes.filter(t => t.tipo === 'ingreso').reduce((acc, curr) => acc + (Number(curr.cantidad) || 0), 0));
+              const gastosMes = redondear(transDelMes.filter(t => t.tipo === 'gasto').reduce((acc, curr) => acc + (Number(curr.cantidad) || 0), 0));
+              const balanceMes = redondear(ingresosMes - gastosMes);
 
-              // Datos para la gráfica de este mes específico
               const catGastos = categorias.map(cat => {
                 const totalCat = transDelMes.filter(t => t.tipo === 'gasto' && t.categoria === cat).reduce((acc, curr) => acc + (Number(curr.cantidad) || 0), 0);
-                return { name: cat, value: totalCat };
+                return { name: cat, value: redondear(totalCat) };
               }).filter(data => data.value > 0); 
               
               const dataChart = { labels: catGastos.map(c => c.name), datasets: [{ data: catGastos.map(c => c.value), backgroundColor: COLORES, borderColor: tema.bgPanel, borderWidth: 2 }] };
@@ -332,7 +336,6 @@ function App() {
                     </div>
                   </div>
 
-                  {/* LA GRÁFICA INDEPENDIENTE DEL MES */}
                   <div style={{ height: '220px', display: 'flex', justifyContent: 'center', flexGrow: 1 }}>
                     {catGastos.length > 0 ? (
                        <Pie data={dataChart} options={{ maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: tema.texto, boxWidth: 12, font: {size: 11} } } } }} />
@@ -370,7 +373,7 @@ function App() {
                       <small style={{ color: tema.textoSecundario }}>{t.categoria}</small>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ color: t.tipo === 'ingreso' ? '#4CAF50' : '#F44336', fontWeight: 'bold' }}>{t.tipo === 'ingreso' ? '+' : '-'}{t.cantidad}€</span>
+                      <span style={{ color: t.tipo === 'ingreso' ? '#4CAF50' : '#F44336', fontWeight: 'bold' }}>{t.tipo === 'ingreso' ? '+' : '-'}{redondear(t.cantidad)}€</span>
                       <button onClick={() => { setFormulario({ descripcion: t.descripcion, cantidad: t.cantidad, categoria: t.categoria, fecha: t.fecha.split('T')[0], tipo: t.tipo, metodoPago: t.metodoPago || 'tarjeta' }); setIdEnEdicion(t._id); setDiaSeleccionado(null); setMostrarModalFormulario(true); }} style={btnAccion}>✏️</button>
                       <button onClick={() => eliminarTransaccion(t._id)} style={btnAccion}>🗑️</button>
                     </div>
@@ -398,7 +401,7 @@ function App() {
               <input type="text" name="descripcion" placeholder="Título" value={formulario.descripcion} onChange={manejarCambio} required style={{...inputStyle, backgroundColor: tema.inputBg, color: tema.texto, borderColor: tema.borde}} />
               
               <div style={{ display: 'flex', gap: '10px' }}>
-                <input type="number" name="cantidad" placeholder="Cantidad" value={formulario.cantidad} onChange={manejarCambio} required style={{...inputStyle, flex: 1, backgroundColor: tema.inputBg, color: tema.texto, borderColor: tema.borde}} />
+                <input type="number" step="0.0001" name="cantidad" placeholder="Cantidad" value={formulario.cantidad} onChange={manejarCambio} required style={{...inputStyle, flex: 1, backgroundColor: tema.inputBg, color: tema.texto, borderColor: tema.borde}} />
                 <input type="date" name="fecha" value={formulario.fecha} onChange={manejarCambio} required style={{...inputStyle, flex: 1, backgroundColor: tema.inputBg, color: tema.texto, borderColor: tema.borde}} />
               </div>
 
