@@ -1,0 +1,501 @@
+
+:root {
+  --bg-principal: #f5f5f5;
+  --bg-panel: #ffffff;
+  --texto: #333333;
+  --texto-secundario: #666666;
+  --borde: #eeeeee;
+  --bg-hover: #fafafa;
+  --input-bg: #ffffff;
+  --dia-hoy: #e2e8f0;
+}
+
+body.dark-mode {
+  --bg-principal: #121212;
+  --bg-panel: #1e1e1e;
+  --texto: #e0e0e0;
+  --texto-secundario: #aaaaaa;
+  --borde: #333333;
+  --bg-hover: #2c2c2c;
+  --input-bg: #2d2d2d;
+  --dia-hoy: #37474f;
+}
+
+body {
+  background-color: var(--bg-principal);
+  color: var(--texto);
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* =========================================
+   PANTALLA LOGIN
+========================================= */
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.login-card {
+  background-color: var(--bg-panel);
+  padding: 40px;
+  border-radius: 15px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+  width: 350px;
+}
+
+.login-title {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.error-msg {
+  color: #d32f2f;
+  text-align: center;
+  font-size: 0.9rem;
+  background-color: #ffebee;
+  padding: 10px;
+  border-radius: 5px;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.btn-submit {
+  padding: 12px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.toggle-text {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: #2196F3;
+  font-weight: bold;
+}
+
+/* =========================================
+   COMPONENTES GLOBALES Y NAVBAR
+========================================= */
+.app-wrapper {
+  min-height: 100vh;
+  padding-bottom: 80px;
+}
+
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 30px;
+  background-color: var(--bg-panel);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.navbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--texto);
+}
+
+.btn-logout {
+  padding: 8px 15px;
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.view-toggles {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px;
+}
+
+.btn-navegacion {
+  padding: 10px 20px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: 0.2s;
+  background-color: var(--bg-panel);
+  color: var(--texto);
+  border: 1px solid var(--borde);
+}
+
+.btn-navegacion.activo {
+  background-color: #2196F3;
+  color: white;
+  border-color: #2196F3;
+}
+
+/* =========================================
+   VISTA CALENDARIO Y RESUMEN LATERAL
+========================================= */
+.calendario-view {
+  display: flex;
+  padding: 0 20px 20px;
+  gap: 30px;
+  flex-wrap: wrap;
+}
+
+.calendario-card {
+  flex: 2;
+  min-width: 300px;
+  background-color: var(--bg-panel);
+  padding: 20px;
+  border-radius: 15px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  overflow-x: auto;
+}
+
+.calendario-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.btn-calendario {
+  padding: 8px 15px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  background-color: var(--input-bg);
+  color: var(--texto);
+}
+
+.calendario-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+  min-width: 400px;
+}
+
+.dia-cell {
+  min-height: 70px;
+  padding: 5px;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  background-color: var(--bg-panel);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.dia-cell:hover {
+  background-color: var(--bg-hover);
+}
+
+.dia-cell.hoy {
+  border: 2px solid #2196F3;
+  background-color: var(--dia-hoy);
+}
+
+.dia-numero {
+  font-size: 0.9rem;
+}
+
+.dia-numero.hoy {
+  font-weight: bold;
+}
+
+.dia-cantidades {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.text-ingreso { color: #4CAF50; font-weight: bold; font-size: 0.75rem; }
+.text-gasto { color: #F44336; font-weight: bold; font-size: 0.75rem; }
+
+.resumen-card {
+  flex: 1;
+  min-width: 300px;
+  background-color: var(--bg-panel);
+  padding: 20px;
+  border-radius: 15px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+}
+
+.resumen-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.balance-total {
+  font-size: 2.5rem;
+  margin: 10px 0;
+  text-align: center;
+}
+
+.chart-container {
+  flex-grow: 1;
+  min-height: 250px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.chart-wrapper {
+  width: 100%;
+  max-width: 250px;
+}
+
+/* =========================================
+   VISTA BALANCE DETALLADO
+========================================= */
+.balance-view {
+  padding: 0 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.balance-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  background-color: var(--bg-panel);
+  padding: 15px 20px;
+  border-radius: 15px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.months-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.month-card {
+  background-color: var(--bg-panel);
+  padding: 20px;
+  border-radius: 15px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+}
+
+.month-title {
+  text-align: center;
+  margin-top: 0;
+  font-size: 1.4rem;
+}
+
+.month-balance {
+  text-align: center;
+  font-weight: bold;
+  font-size: 1.2rem;
+  margin: 5px 0 15px;
+}
+
+.payment-methods {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  background-color: var(--input-bg);
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.payment-col {
+  text-align: center;
+  flex: 1;
+}
+
+.payment-label {
+  color: var(--texto-secundario);
+  font-size: 0.85rem;
+}
+
+.payment-amount {
+  font-weight: bold;
+  color: #F44336;
+  font-size: 1.1rem;
+}
+
+.payment-divider {
+  width: 1px;
+  background-color: var(--borde);
+}
+
+.month-chart {
+  height: 220px;
+  display: flex;
+  justify-content: center;
+  flex-grow: 1;
+}
+
+/* =========================================
+   FORMULARIOS Y MODALES
+========================================= */
+.input-style {
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--borde);
+  font-size: 1rem;
+  outline: none;
+  background-color: var(--input-bg);
+  color: var(--texto);
+}
+
+.input-style.flex-1 {
+  flex: 1;
+}
+
+.fab-btn {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: #2196F3;
+  color: white;
+  font-size: 30px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  padding: 25px;
+  border-radius: 15px;
+  width: 90%;
+  max-width: 400px;
+  position: relative;
+  background-color: var(--bg-panel);
+  color: var(--texto);
+}
+
+.close-btn {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: var(--texto);
+}
+
+.modal-list {
+  list-style: none;
+  padding: 0;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.modal-list-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px;
+  border-bottom: 1px solid var(--borde);
+}
+
+.item-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-accion {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.form-group-inline {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.form-row {
+  display: flex;
+  gap: 10px;
+}
+
+.radio-group {
+  display: flex;
+  justify-content: space-around;
+  padding: 10px;
+  background-color: var(--input-bg);
+  border-radius: 8px;
+  border: 1px solid var(--borde);
+}
+
+.btn-add {
+  padding: 10px;
+  background-color: #2196F3;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.btn-guardar {
+  padding: 15px;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  margin-top: 5px;
+  cursor: pointer;
+}
+
+.empty-msg {
+  text-align: center;
+  color: var(--texto-secundario);
+}
