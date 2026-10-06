@@ -5,9 +5,31 @@ import './App.css';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-const redondear = (num) => {
-  const numero = Number(num);
-  return isNaN(numero) ? 0 : Number(numero.toFixed(4));
+const API_URL = import.meta.env.VITE_API_URL || 'https://monedero-qbte.onrender.com/api';
+
+const leerUsuarioGuardado = () => {
+  try {
+    return JSON.parse(localStorage.getItem('usuario')) || null;
+  } catch {
+    localStorage.removeItem('usuario');
+    return null;
+  }
+};
+
+const redondear = (valor) => {
+  const numero = Number(valor);
+  return Number.isNaN(numero) ? 0 : Number(numero.toFixed(4));
+};
+
+const pedir = async (ruta, opciones = {}) => {
+  const respuesta = await fetch(`${API_URL}${ruta}`, opciones);
+  const datos = await respuesta.json().catch(() => ({}));
+
+  if (!respuesta.ok) {
+    throw new Error(datos.mensaje || 'No se pudo completar la petición');
+  }
+
+  return datos;
 };
 
 function PantallaLogin({ onLogin }) {
@@ -20,20 +42,19 @@ function PantallaLogin({ onLogin }) {
   const enviarFormulario = async (e) => {
     e.preventDefault();
     setError('');
-    const url = esRegistro ? 'https://monedero-qbte.onrender.com/api/auth/registro' : 'https://monedero-qbte.onrender.com/api/auth/login';
-    
     try {
-      const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formulario) });
-      const data = await res.json();
-      if (!res.ok) { setError(data.mensaje || 'Error en la petición'); return; }
-
+      const data = await pedir(esRegistro ? '/auth/registro' : '/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formulario)
+      });
       if (esRegistro) {
         alert('Registro exitoso. Ahora inicia sesión.');
         setEsRegistro(false);
       } else {
         onLogin(data.token, data.usuario); 
       }
-    } catch (err) { setError('Error de conexión con el servidor'); }
+    } catch (error) { setError(error.message); }
   };
 
   return (
@@ -62,7 +83,7 @@ function PantallaLogin({ onLogin }) {
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token') || null);
-  const [usuario, setUsuario] = useState(JSON.parse(localStorage.getItem('usuario')) || null);
+  const [usuario, setUsuario] = useState(leerUsuarioGuardado);
   const [modoOscuro, setModoOscuro] = useState(() => localStorage.getItem('modoOscuro') === 'true');
 
   const [vista, setVista] = useState('calendario'); 
@@ -102,7 +123,7 @@ function App() {
 
   useEffect(() => {
     if (token) {
-      fetch('https://monedero-qbte.onrender.com/api/transacciones', { headers: { 'Authorization': `Bearer ${token}` } })
+      fetch(`${API_URL}/transacciones`, { headers: { Authorization: `Bearer ${token}` } })
       .then(res => res.json())
       .then(datos => { if (Array.isArray(datos)) setTransacciones(datos); })
       .catch(err => console.error('Error:', err));
@@ -116,14 +137,14 @@ function App() {
   const guardarPerfil = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('https://monedero-qbte.onrender.com/api/auth/perfil', {
+      const res = await fetch(`${API_URL}/auth/perfil`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ nombre: nuevoNombre })
       });
       const data = await res.json();
       setUsuario(data);
       localStorage.setItem('usuario', JSON.stringify(data));
       setMostrarModalPerfil(false);
-    } catch (error) { console.error('Error al actualizar perfil'); }
+    } catch (error) { console.error('No se pudo actualizar el perfil:', error); }
   };
 
   const manejarCambio = (e) => setFormulario({ ...formulario, [e.target.name]: e.target.value });
@@ -142,13 +163,13 @@ function App() {
     e.preventDefault();
     try {
       if (idEnEdicion) {
-        const res = await fetch(`https://monedero-qbte.onrender.com/api/transacciones/${idEnEdicion}`, {
+        const res = await fetch(`${API_URL}/transacciones/${idEnEdicion}`, {
           method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(formulario)
         });
         const actualizada = await res.json();
         setTransacciones(transacciones.map(t => t._id === idEnEdicion ? actualizada : t));
       } else {
-        const res = await fetch('https://monedero-qbte.onrender.com/api/transacciones', {
+        const res = await fetch(`${API_URL}/transacciones`, {
           method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(formulario)
         });
         const nueva = await res.json();
@@ -160,7 +181,7 @@ function App() {
 
   const eliminarTransaccion = async (id) => {
     if (window.confirm('¿Seguro que quieres borrar esto?')) {
-      await fetch(`https://monedero-qbte.onrender.com/api/transacciones/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }});
+      await fetch(`${API_URL}/transacciones/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` }});
       setTransacciones(transacciones.filter(t => t._id !== id));
     }
   };
