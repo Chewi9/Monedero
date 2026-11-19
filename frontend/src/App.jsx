@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Estimacion } from './Estimacion';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Pie } from 'react-chartjs-2';
 import './App.css';
@@ -227,9 +228,10 @@ function App() {
       <div className="view-toggles">
         <button onClick={() => setVista('calendario')} className={`btn-navegacion ${vista === 'calendario' ? 'activo' : ''}`}>📅 Calendario</button>
         <button onClick={() => setVista('balance')} className={`btn-navegacion ${vista === 'balance' ? 'activo' : ''}`}>📊 Balance Detallado</button>
+        <button onClick={() => setVista('estimacion')} className={`btn-navegacion ${vista === 'estimacion' ? 'activo' : ''}`}>⏳ Estimación</button>
       </div>
 
-      {vista === 'calendario' ? (
+      {vista === 'calendario' && (
         <div className="calendario-view">
           <div className="calendario-card">
             <div className="calendario-header">
@@ -289,8 +291,9 @@ function App() {
             </div>
           </div>
         </div>
-      ) : (
-        
+      )}
+
+      {vista === 'balance' && (
         <div className="balance-view">
           
           <div className="balance-toolbar">
@@ -364,6 +367,10 @@ function App() {
         </div>
       )}
 
+      {vista === 'estimacion' && (
+        <Estimacion transacciones={transaccionesSeguras} />
+      )}
+
       <button onClick={() => { setIdEnEdicion(null); setFormulario({ descripcion: '', cantidad: '', categoria: '', fecha: hoy, tipo: 'gasto', metodoPago: 'tarjeta' }); setMostrarModalFormulario(true); }} className="fab-btn">
         +
       </button>
@@ -385,7 +392,7 @@ function App() {
                       <span className={t.tipo === 'ingreso' ? 'text-ingreso' : 'text-gasto'} style={{ fontSize: '1rem' }}>
                         {t.tipo === 'ingreso' ? '+' : '-'}{redondear(t.cantidad)}€
                       </span>
-                      <button onClick={() => { setFormulario({ descripcion: t.descripcion, cantidad: t.cantidad, categoria: t.categoria, fecha: t.fecha.split('T')[0], tipo: t.tipo, metodoPago: t.metodoPago || 'tarjeta' }); setIdEnEdicion(t._id); setDiaSeleccionado(null); setMostrarModalFormulario(true); }} className="btn-accion">✏️️</button>
+                      <button onClick={() => { setFormulario({ descripcion: t.descripcion, cantidad: t.cantidad, categoria: t.categoria, fecha: t.fecha.split('T')[0], tipo: t.tipo, metodoPago: t.metodoPago || 'tarjeta' }); setIdEnEdicion(t._id); setDiaSeleccionado(null); setMostrarModalFormulario(true); }} className="btn-accion">✏</button>
                       <button onClick={() => eliminarTransaccion(t._id)} className="btn-accion">🗑️</button>
                     </div>
                   </li>

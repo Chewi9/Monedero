@@ -499,3 +499,61 @@ body {
   text-align: center;
   color: var(--texto-secundario);
 }
+
+
+/* =========================================
+   VISTA ESTIMACIÓN
+========================================= */
+.estimacion-aviso {
+  background-color: var(--bg-panel);
+  border-left: 4px solid #FF9800;
+  padding: 14px 18px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  font-size: 0.92rem;
+  color: var(--texto-secundario);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+
+.estimacion-hero {
+  background-color: var(--bg-panel);
+  padding: 30px 20px;
+  border-radius: 15px;
+  text-align: center;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.estimacion-label {
+  color: var(--texto-secundario);
+  font-size: 0.95rem;
+}
+
+.estimacion-tiempo {
+  font-size: 2.5rem;
+  margin: 12px 0;
+}
+
+.estimacion-subtitulo {
+  color: var(--texto-secundario);
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.estimacion-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.estimacion-kpi-card {
+  text-align: center;
+  justify-content: center;
+}
+
+.estimacion-kpi-valor {
+  font-size: 1.6rem;
+  font-weight: bold;
+  margin-top: 8px;
+}
