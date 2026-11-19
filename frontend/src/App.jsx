@@ -8,6 +8,37 @@ ChartJS.register(ArcElement, Tooltip, Legend);
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://monedero-qbte.onrender.com/api';
 
+const MONEDAS = [
+  { codigo: 'EUR', simbolo: '€', nombre: 'EUR (€)' },
+  { codigo: 'USD', simbolo: '$', nombre: 'USD ($)' },
+  { codigo: 'GBP', simbolo: '£', nombre: 'GBP (£)' },
+  { codigo: 'CHF', simbolo: 'Fr', nombre: 'CHF (Fr)' },
+  { codigo: 'JPY', simbolo: '¥', nombre: 'JPY (¥)' },
+  { codigo: 'MXN', simbolo: '$', nombre: 'MXN ($)' },
+  { codigo: 'COP', simbolo: '$', nombre: 'COP ($)' },
+  { codigo: 'ARS', simbolo: '$', nombre: 'ARS ($)' },
+  { codigo: 'BRL', simbolo: 'R$', nombre: 'BRL (R$)' },
+  { codigo: 'PLN', simbolo: 'zł', nombre: 'PLN (zł)' },
+  { codigo: 'CZK', simbolo: 'Kč', nombre: 'CZK (Kč)' },
+  { codigo: 'HUF', simbolo: 'Ft', nombre: 'HUF (Ft)' },
+];
+
+// Tasas aproximadas de respaldo (1 EUR = X moneda) por si no hay conexión
+const TASAS_RESPALDO = {
+  EUR: 1,
+  USD: 1.08,
+  GBP: 0.85,
+  CHF: 0.94,
+  JPY: 163,
+  MXN: 21.5,
+  COP: 4650,
+  ARS: 1080,
+  BRL: 6.1,
+  PLN: 4.3,
+  CZK: 25.3,
+  HUF: 405,
+};
+
 const leerUsuarioGuardado = () => {
   try {
     return JSON.parse(localStorage.getItem('usuario')) || null;
@@ -106,8 +137,20 @@ function App() {
   });
   const [nuevaCategoria, setNuevaCategoria] = useState('');
 
+  // Tasas de cambio respecto a 1 EUR
+  const [tasasEUR, setTasasEUR] = useState(TASAS_RESPALDO);
+  const [tasaManual, setTasaManual] = useState('1');
+
   const hoy = new Date().toISOString().split('T')[0];
-  const [formulario, setFormulario] = useState({ descripcion: '', cantidad: '', categoria: '', fecha: hoy, tipo: 'gasto', metodoPago: 'tarjeta' });
+  const [formulario, setFormulario] = useState({
+    descripcion: '',
+    cantidad: '',
+    categoria: '',
+    fecha: hoy,
+    tipo: 'gasto',
+    metodoPago: 'tarjeta',
+    moneda: 'EUR'
+  });
 
   const COLORES = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF19A3', '#e91e63', '#9c27b0'];
 
@@ -121,6 +164,29 @@ function App() {
       document.body.classList.remove('dark-mode');
     }
   }, [modoOscuro]);
+
+  // Cargar tasas de cambio actuales (caché de 12 horas en localStorage)
+  useEffect(() => {
+    const cargarTasas = async () => {
+      try {
+        const cache = JSON.parse(localStorage.getItem('tasasCambioEUR') || 'null');
+        const doceHoras = 12 * 60 * 60 * 1000;
+        if (cache && cache.rates && Date.now() - cache.timestamp < doceHoras) {
+          setTasasEUR({ ...TASAS_RESPALDO, ...cache.rates });
+          return;
+        }
+        const res = await fetch('https://open.er-api.com/v6/latest/EUR');
+        const data = await res.json();
+        if (data && data.rates) {
+          setTasasEUR({ ...TASAS_RESPALDO, ...data.rates });
+          localStorage.setItem('tasasCambioEUR', JSON.stringify({ rates: data.rates, timestamp: Date.now() }));
+        }
+      } catch {
+        // Si falla la red, usa TASAS_RESPALDO automáticamente
+      }
+    };
+    cargarTasas();
+  }, []);
 
   useEffect(() => {
     if (token) {
@@ -148,7 +214,24 @@ function App() {
     } catch (error) { console.error('No se pudo actualizar el perfil:', error); }
   };
 
-  const manejarCambio = (e) => setFormulario({ ...formulario, [e.target.name]: e.target.value });
+  const manejarCambio = (e) => {
+    const { name, value } = e.target;
+    if (name === 'moneda') {
+      const tasaPorEuro = tasasEUR[value] || 1;
+      const eurPorUnidad = value === 'EUR' ? 1 : Number((1 / tasaPorEuro).toFixed(6));
+      setTasaManual(String(eurPorUnidad));
+    }
+    setFormulario({ ...formulario, [name]: value });
+  };
+
+  const calcularEurosConvertidos = () => {
+    const cantNum = Number(formulario.cantidad);
+    if (Number.isNaN(cantNum) || cantNum <= 0) return 0;
+    if (formulario.moneda === 'EUR') return redondear(cantNum);
+    const tasa = Number(tasaManual);
+    if (Number.isNaN(tasa) || tasa <= 0) return 0;
+    return Number((cantNum * tasa).toFixed(2));
+  };
 
   const agregarCategoria = (e) => {
     e.preventDefault();
@@ -162,21 +245,34 @@ function App() {
 
   const guardarTransaccion = async (e) => {
     e.preventDefault();
+    const cantidadOriginalNum = redondear(formulario.cantidad);
+    const cantidadEnEuros = formulario.moneda === 'EUR' ? cantidadOriginalNum : calcularEurosConvertidos();
+
+    const payload = {
+      ...formulario,
+      cantidad: cantidadEnEuros,
+      moneda: formulario.moneda,
+      cantidadOriginal: cantidadOriginalNum
+    };
+
     try {
       if (idEnEdicion) {
         const res = await fetch(`${API_URL}/transacciones/${idEnEdicion}`, {
-          method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(formulario)
+          method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(payload)
         });
         const actualizada = await res.json();
         setTransacciones(transacciones.map(t => t._id === idEnEdicion ? actualizada : t));
       } else {
         const res = await fetch(`${API_URL}/transacciones`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(formulario)
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(payload)
         });
         const nueva = await res.json();
         setTransacciones([...transacciones, nueva]); 
       }
-      setMostrarModalFormulario(false); setIdEnEdicion(null); setFormulario({ descripcion: '', cantidad: '', categoria: '', fecha: hoy, tipo: 'gasto', metodoPago: 'tarjeta' }); 
+      setMostrarModalFormulario(false);
+      setIdEnEdicion(null);
+      setTasaManual('1');
+      setFormulario({ descripcion: '', cantidad: '', categoria: '', fecha: hoy, tipo: 'gasto', metodoPago: 'tarjeta', moneda: 'EUR' }); 
     } catch (error) { console.error('Error:', error); }
   };
 
@@ -371,7 +467,15 @@ function App() {
         <Estimacion transacciones={transaccionesSeguras} />
       )}
 
-      <button onClick={() => { setIdEnEdicion(null); setFormulario({ descripcion: '', cantidad: '', categoria: '', fecha: hoy, tipo: 'gasto', metodoPago: 'tarjeta' }); setMostrarModalFormulario(true); }} className="fab-btn">
+      <button
+        onClick={() => {
+          setIdEnEdicion(null);
+          setTasaManual('1');
+          setFormulario({ descripcion: '', cantidad: '', categoria: '', fecha: hoy, tipo: 'gasto', metodoPago: 'tarjeta', moneda: 'EUR' });
+          setMostrarModalFormulario(true);
+        }}
+        className="fab-btn"
+      >
         +
       </button>
 
@@ -385,14 +489,47 @@ function App() {
                 transaccionesSeguras.filter(t => t.fecha && t.fecha.startsWith(diaSeleccionado)).map(t => (
                   <li key={t._id} className="modal-list-item">
                     <div className="item-details">
-                      <span><strong>{t.descripcion}</strong> <small>({t.metodoPago === 'efectivo' ? '💵' : '💳'})</small></span>
+                      <span>
+                        <strong>{t.descripcion}</strong>{' '}
+                        <small>({t.metodoPago === 'efectivo' ? '💵' : '💳'})</small>
+                        {t.moneda && t.moneda !== 'EUR' && t.cantidadOriginal ? (
+                          <small style={{ marginLeft: '6px', color: '#2196F3', fontWeight: 'bold' }}>
+                            [{t.cantidadOriginal} {t.moneda}]
+                          </small>
+                        ) : null}
+                      </span>
                       <small style={{ color: 'var(--texto-secundario)' }}>{t.categoria}</small>
                     </div>
                     <div className="item-actions">
                       <span className={t.tipo === 'ingreso' ? 'text-ingreso' : 'text-gasto'} style={{ fontSize: '1rem' }}>
                         {t.tipo === 'ingreso' ? '+' : '-'}{redondear(t.cantidad)}€
                       </span>
-                      <button onClick={() => { setFormulario({ descripcion: t.descripcion, cantidad: t.cantidad, categoria: t.categoria, fecha: t.fecha.split('T')[0], tipo: t.tipo, metodoPago: t.metodoPago || 'tarjeta' }); setIdEnEdicion(t._id); setDiaSeleccionado(null); setMostrarModalFormulario(true); }} className="btn-accion">✏</button>
+                      <button
+                        onClick={() => {
+                          const monedaGuardada = t.moneda || 'EUR';
+                          const orig = t.cantidadOriginal || t.cantidad;
+                          const tasaGuardada = monedaGuardada !== 'EUR' && orig > 0
+                            ? Number((t.cantidad / orig).toFixed(6))
+                            : 1;
+
+                          setTasaManual(String(tasaGuardada));
+                          setFormulario({
+                            descripcion: t.descripcion,
+                            cantidad: orig,
+                            categoria: t.categoria,
+                            fecha: t.fecha.split('T')[0],
+                            tipo: t.tipo,
+                            metodoPago: t.metodoPago || 'tarjeta',
+                            moneda: monedaGuardada
+                          });
+                          setIdEnEdicion(t._id);
+                          setDiaSeleccionado(null);
+                          setMostrarModalFormulario(true);
+                        }}
+                        className="btn-accion"
+                      >
+                        ✏
+                      </button>
                       <button onClick={() => eliminarTransaccion(t._id)} className="btn-accion">🗑️</button>
                     </div>
                   </li>
@@ -419,8 +556,35 @@ function App() {
               
               <div className="form-row">
                 <input type="number" step="0.0001" name="cantidad" placeholder="Cantidad" value={formulario.cantidad} onChange={manejarCambio} required className="input-style flex-1" />
-                <input type="date" name="fecha" value={formulario.fecha} onChange={manejarCambio} required className="input-style flex-1" />
+                <select name="moneda" value={formulario.moneda} onChange={manejarCambio} className="input-style" style={{ width: '115px', fontWeight: 'bold' }}>
+                  {MONEDAS.map(m => (
+                    <option key={m.codigo} value={m.codigo}>{m.nombre}</option>
+                  ))}
+                </select>
               </div>
+
+              {formulario.moneda !== 'EUR' && (
+                <div className="currency-box">
+                  <div className="currency-box-header">
+                    <span>💱 Se guardará como:</span>
+                    <strong style={{ fontSize: '1.05rem', color: '#2196F3' }}>
+                      {calcularEurosConvertidos()} €
+                    </strong>
+                  </div>
+                  <div className="currency-rate-row">
+                    <span>1 {formulario.moneda} en EUR:</span>
+                    <input
+                      type="number"
+                      step="0.000001"
+                      value={tasaManual}
+                      onChange={(e) => setTasaManual(e.target.value)}
+                      className="currency-rate-input"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <input type="date" name="fecha" value={formulario.fecha} onChange={manejarCambio} required className="input-style" />
 
               {formulario.tipo === 'gasto' && (
                 <div className="radio-group">

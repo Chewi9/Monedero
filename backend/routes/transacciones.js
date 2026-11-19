@@ -24,7 +24,9 @@ router.post('/', auth, async (req, res) => {
       categoria: req.body.categoria,
       fecha: req.body.fecha,
       tipo: req.body.tipo,
-      metodoPago: req.body.metodoPago
+      metodoPago: req.body.metodoPago,
+      moneda: req.body.moneda || 'EUR',
+      cantidadOriginal: req.body.cantidadOriginal ?? req.body.cantidad
     });
 
     const guardada = await nuevaTransaccion.save();

@@ -557,3 +557,46 @@ body {
   font-weight: bold;
   margin-top: 8px;
 }
+
+
+/* =========================================
+   CONVERSOR DE MONEDA EN MODAL
+========================================= */
+.currency-box {
+  background-color: var(--input-bg);
+  border: 1px solid var(--borde);
+  border-left: 4px solid #2196F3;
+  padding: 10px 12px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.currency-box-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.currency-rate-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--texto-secundario);
+}
+
+.currency-rate-input {
+  width: 95px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--borde);
+  background-color: var(--bg-panel);
+  color: var(--texto);
+  font-size: 0.85rem;
+  text-align: right;
+}
